@@ -1,0 +1,13 @@
+setuptools
+five.grok
+plone.app.z3cform
+reportlab
+z3c.saconfig
+MySQL-python
+collective.saconnect
+plone.directives.form
+plone.formwidget.multifile
+plone.app.drafts
+plone.formwidget.autocomplete
+collective.z3cform.datetimewidget
+py-bcrypt
