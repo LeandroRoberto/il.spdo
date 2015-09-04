@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Banco de Dados #
+# Banco de Dados # 
 DEFAULT_DSN = 'mysql://root:interlegis@localhost/spdo?charset=utf8'
 TABLE_ARGS = {'mysql_engine':'InnoDB','mysql_charset':'utf8'}
 CREATE_ALL_TABLES = True
@@ -8,7 +8,7 @@ CREATE_SAMPLES = True
 LOTS_OF_SAMPLES = False
 DISABLE_VERSIONS = True
 
-# Anexos #
+# Anexos # 
 PATH_ANEXOS = '/var/interlegis/spdo/anexos'
 ENABLE_FLASH_MULTIFILE = True
 
@@ -51,8 +51,37 @@ removendo os protocolos que não deseja mais acompanhar:
 Sistema de Protocolo de Documentos - SPDO
 """
 
-from z3c.saconfig import named_scoped_session
+NOTIFICACAO_OBRIG_ASSUNTO = u"[SPDO] O protocolo %(numero)s foi encaminhado a sua área!"
+NOTIFICACAO_OBRIG_MSG = u"""Olá,
+ 
+O seguinte protocolo tramitou:
+
+Número do Protocolo: %(numero)s
+Data da Última Tramitação: %(data_tramitacao)s
+Assunto: %(assunto)s
+
+Área de Origem: %(area_origem)s
+Responsável pelo Encaminhamento: %(responsavel_origem)s
+
+Área de Destino: %(area_destino)s
+Responsável pelo Recebimento: %(responsavel_destino)s
+
+Situação: %(situacao)s
+
+Despacho: %(despacho)s
+
+Você pode acessar os detalhes desse protocolo no seguinte link:
+%(url_protocolo)s
+ 
+
+-- 
+Sistema de Protocolo de Documentos - SPDO
+"""
+
 import zope.i18nmessageid
+
+from z3c.saconfig import named_scoped_session
+
 
 def Session():
     return named_scoped_session('spdo_session')

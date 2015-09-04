@@ -1,26 +1,27 @@
 # -*- coding: utf-8 -*-
 
-import os
 import datetime
-import sqlalchemy as rdb
-from sqlalchemy.orm import aliased
+import os
 
-from five import grok
-from zope.interface import Interface
-from zope.component import getMultiAdapter, getUtility
-from zope.globalrequest import getRequest
-from zope.app.component.hooks import getSite
 from Products.CMFCore.utils import getToolByName
-
-from il.spdo.config import MessageFactory as _
+from five import grok
 from il.spdo import db
+from il.spdo.config import MessageFactory as _, NOTIFICACAO_OBRIG_MSG, \
+    NOTIFICACAO_OBRIG_ASSUNTO
 from il.spdo.config import Session, PATH_ANEXOS, SEARCH_LIMIT, NOTIFICACAO_ASSUNTO, NOTIFICACAO_MSG
-from il.spdo.saconfig import ScopeID
-from il.spdo.nav import url
-from il.spdo.log import log, logger
 from il.spdo.interfaces import (ISPDOAPI, ISecurityChecker,
 getTipoProtocolo, getTipoDocumento, getAssunto, getSituacao,
-getOrigem, getDestino, getArea, getTempoInativo)
+getOrigem, getDestino, getArea, getTempoInativo, getProtocoloId)
+from il.spdo.log import log, logger
+from il.spdo.nav import url
+from il.spdo.saconfig import ScopeID
+from sqlalchemy.orm import aliased
+from zope.app.component.hooks import getSite
+from zope.component import getMultiAdapter, getUtility
+from zope.globalrequest import getRequest
+from zope.interface import Interface
+import sqlalchemy as rdb
+
 
 class SPDOAPI(grok.GlobalUtility):
     """API SPDO.
@@ -61,7 +62,8 @@ class SPDOAPI(grok.GlobalUtility):
         """
         session = Session()
         if id is None:
-            id = self.getProtocoloId()
+            id = self.getProtocoloId() 
+ 
         return session.query(db.Protocolo).get(id)
 
     def getFluxoId(self):
@@ -201,6 +203,8 @@ class SPDOAPI(grok.GlobalUtility):
         """
         protocolos_tramitados = self._TramiteEnvio(protocolos, areas, despacho)
         self._EnviaNotificacoes(protocolos_tramitados)
+         
+        self._notificaResponsaveis(protocolos_tramitados)
 
     @log
     def _TramiteEnvio(self, protocolos, areas, despacho, apenso=False):
@@ -456,3 +460,50 @@ class SPDOAPI(grok.GlobalUtility):
                         mh.send(text, immediate=True, charset='utf8')
                     except:
                         logger(_(u'Erro ao enviar a mensagem de notificação.'))
+
+    def _notificaResponsaveis(self, protocolos):
+        """Envia email notificando tramitação para a pessoa destino
+        """
+        
+        pu = getToolByName(getSite(), 'portal_url')
+        portal = pu.getPortalObject()
+        mh = portal.MailHost
+        session = Session()
+        
+        protocolos = list(set(protocolos))
+        
+        for protocolo_id in protocolos:
+            
+            protocolo = session.query(db.Protocolo).get(protocolo_id) 
+    
+            # TODO: refatorar. Essa lista de tramites pode vir
+            # pronta do método TramiteEnvio, evitando notificações
+            # desnecessárias nas tramitações por cópia.
+    
+            tramites = session.query(db.Tramite).\
+                       filter_by(protocolo_id=protocolo_id).\
+                       filter_by(data_recebimento=None).all()
+                       
+            for tramite in tramites:
+                d = {'numero': protocolo.numero,
+                    'data_tramitacao': tramite.data_disponibilizacao,
+                     'assunto': protocolo.assunto,
+                     'area_origem': tramite.area_anterior.nome,
+                     'responsavel_origem': tramite.area_anterior.responsavel[-1].pessoa.nome,
+                     'area_destino': tramite.area.nome,
+                     'responsavel_destino': tramite.responsavel.pessoa.nome,
+                     'situacao': protocolo.situacao.nome,
+                     'despacho': tramite.despacho,
+                     'url_protocolo': url('show-protocolo', id=protocolo.id)}
+                mfrom = unicode(portal.getProperty('email_from_address'), 'utf-8')
+                mto = tramite.responsavel.pessoa.email
+                subject=NOTIFICACAO_OBRIG_ASSUNTO % d
+                body=NOTIFICACAO_OBRIG_MSG % d
+                text = u"From: %s\nTo: %s\nSubject: %s\n\n%s" % (mfrom, mto, subject, body)
+                
+                try:
+                    mh.send(text, immediate=True, charset='utf8')
+                    logger(_(u'Enviou...'))
+                    logger(_(text))
+                except:
+                    logger(_(u'Erro ao enviar a mensagem de notificação.'))
