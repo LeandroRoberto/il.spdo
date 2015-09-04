@@ -5,7 +5,6 @@
 
 # Packages
 *.egg
-*.egg-info
 dist
 build
 eggs
@@ -33,3 +32,4 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+.settings
